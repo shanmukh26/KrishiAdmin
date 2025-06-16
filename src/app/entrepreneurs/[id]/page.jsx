@@ -1,36 +1,36 @@
-"use client";
+'use client';
 
-import { useParams, useRouter } from "next/navigation";
-import { useState } from "react";
-
-const entrepreneurs = [
-  {
-    id: 1,
-    name: "Ravi Kumar",
-    mobile: "111-7779998",
-    email: "ravi123@gmail.com",
-    registeredOn: "January 10, 2025",
-    farmers: [{ name: "Farm 1", location: "Andhra", crop: "Rice" }],
-  },
-  {
-    id: 2,
-    name: "Lakshmi",
-    mobile: "222-8889991",
-    email: "lakshmi123@gmail.com",
-    registeredOn: "February 12, 2025",
-    farmers: [{ name: "Farm 2", location: "Telangana", crop: "Wheat" }],
-  },
-];
+import { useEffect, useState } from 'react';
+import { useParams, useRouter } from 'next/navigation';
+import { doc, getDoc } from 'firebase/firestore';
+import { db } from '../../../lib/fireabase';
 
 export default function EntrepreneurDetailsPage() {
   const { id } = useParams();
   const router = useRouter();
+
+  const [entrepreneur, setEntrepreneur] = useState(null);
   const [showDropdown, setShowDropdown] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
 
-  const entrepreneur = entrepreneurs.find((e) => e.id.toString() === id);
+  useEffect(() => {
+    const fetchEntrepreneur = async () => {
+      const docRef = doc(db, 'RE_details', id);
+      const docSnap = await getDoc(docRef);
 
-  if (!entrepreneur) return <div>Entrepreneur not found</div>;
+      if (docSnap.exists()) {
+        setEntrepreneur({ id: docSnap.id, ...docSnap.data() });
+      } else {
+        console.error('No such document!');
+      }
+    };
+
+    if (id) fetchEntrepreneur();
+  }, [id]);
+
+  if (!entrepreneur) {
+    return <p className="p-8">Loading...</p>;
+  }
 
   return (
     <div className="p-6 mx-30 relative">
@@ -39,7 +39,7 @@ export default function EntrepreneurDetailsPage() {
       <div className="bg-white py-4 mb-4 text-[16px]">
         <div className="flex items-center mb-2">
           <h2 className="font-bold text-[32px] text-[#25632D]">
-            {entrepreneur.name}
+            {entrepreneur.title} {entrepreneur.firstName} {entrepreneur.lastName}
           </h2>
 
           <div className="relative ml-4">
@@ -47,7 +47,6 @@ export default function EntrepreneurDetailsPage() {
               className="bg-[#25632D] text-white px-4 py-1 rounded flex items-center gap-2 cursor-pointer"
               onClick={() => setShowDropdown(!showDropdown)}
             >
-              {/* <span>Options</span> */}
               <img
                 src="/DropdownLogo.svg"
                 alt="Dropdown Icon"
@@ -58,9 +57,7 @@ export default function EntrepreneurDetailsPage() {
             {showDropdown && (
               <div className="absolute left-0 mt-2 w-44 bg-white border rounded shadow-md z-10">
                 <button
-                  onClick={() =>
-                    router.push(`/entrepreneurs/${entrepreneur.id}/edit`)
-                  }
+                  onClick={() => router.push(`/entrepreneurs/${entrepreneur.id}/edit`)}
                   className="block px-4 py-2 text-sm hover:bg-gray-100 w-full text-left"
                 >
                   Edit Details
@@ -76,48 +73,50 @@ export default function EntrepreneurDetailsPage() {
           </div>
         </div>
 
-        <p>
-          <strong>Mobile Number:</strong> {entrepreneur.mobile}
-        </p>
-        <p>
-          <strong>Email Address:</strong> {entrepreneur.email}
-        </p>
-        <p>
-          <strong>Registration:</strong> {entrepreneur.registeredOn}
-        </p>
+        <p><strong>Mobile Number:</strong> {entrepreneur.mobile}</p>
+        <p><strong>Email Address:</strong> {entrepreneur.email}</p>
+        <p><strong>Registration:</strong> {new Date(entrepreneur.createdAt?.seconds * 1000).toLocaleDateString()}</p>
+        <p><strong>Gender:</strong> {entrepreneur.gender}</p>
+        <p><strong>State:</strong> {entrepreneur.state}</p>
+        <p><strong>City:</strong> {entrepreneur.city}</p>
+        <p><strong>Address:</strong> {entrepreneur.address}</p>
+        <p><strong>Pincode:</strong> {entrepreneur.pincode}</p>
+        <p><strong>Has Qualified Test:</strong> {entrepreneur.hasQualifiedTest ? 'Yes' : 'No'}</p>
       </div>
 
-      <div className="mb-6">
-        <h2 className="font-semibold text-green-700 mb-2 text-[32px]">
-          Assigned Farmers List
-        </h2>
-        <table className="w-full border text-sm text-center text-[16px]">
-          <thead>
-            <tr>
-              <th className="p-6 border">Farmer name</th>
-              <th className="p-6 border">Location</th>
-              <th className="p-6 border">Crop Type</th>
-            </tr>
-          </thead>
-          <tbody>
-            {entrepreneur.farmers.map((farmers, index) => (
-              <tr key={index}>
-                <td className="p-6 border">{farmers.name}</td>
-                <td className="p-6 border">{farmers.location}</td>
-                <td className="p-6 border">{farmers.crop}</td>
+      {/* Farmers Table */}
+      {entrepreneur.farmers && entrepreneur.farmers.length > 0 && (
+        <div className="mb-6">
+          <h2 className="font-semibold text-green-700 mb-2 text-[32px]">
+            Assigned Farmers List
+          </h2>
+          <table className="w-full border text-sm text-center text-[16px]">
+            <thead>
+              <tr>
+                <th className="p-6 border">Farmer name</th>
+                <th className="p-6 border">Location</th>
+                <th className="p-6 border">Crop Type</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+            </thead>
+            <tbody>
+              {entrepreneur.farmers.map((farmer, index) => (
+                <tr key={index}>
+                  <td className="p-6 border">{farmer.name}</td>
+                  <td className="p-6 border">{farmer.location}</td>
+                  <td className="p-6 border">{farmer.crop}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
 
       {/* Confirmation Modal */}
       {showConfirm && (
         <div className="fixed inset-0 flex items-center justify-center bg-black/50 backdrop-blur-sm z-20">
           <div className="bg-white p-6 rounded shadow-lg text-center px-20 py-20">
             <p className="text-lg font-semibold mb-4">
-              Are you sure you want to deactivate this R.E? They will lose
-              access to the app.
+              Are you sure you want to deactivate this R.E? They will lose access to the app.
             </p>
             <div className="flex justify-between gap-4">
               <button
@@ -129,7 +128,7 @@ export default function EntrepreneurDetailsPage() {
               <button
                 className="bg-[#25632D] text-white px-20 py-1 rounded"
                 onClick={() => {
-                  console.log(`Deactivated: ${entrepreneur.name}`);
+                  console.log(`Deactivated: ${entrepreneur.firstName}`);
                   router.back();
                 }}
               >
@@ -142,3 +141,4 @@ export default function EntrepreneurDetailsPage() {
     </div>
   );
 }
+
